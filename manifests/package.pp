@@ -2,7 +2,7 @@
 # Need to add Version parameter
 
 # Note: This can be very slow - it downloads packages from the Repo
-define anaconda::package( $env=undef, $base_path='/opt/anaconda') {
+define anaconda::package( $env=undef, $base_path='/opt/anaconda', $version=undef) {
     include anaconda
     
     $conda = "${base_path}/bin/conda"
@@ -19,14 +19,23 @@ define anaconda::package( $env=undef, $base_path='/opt/anaconda') {
         $env_name = "root"
         $env_require = [Class["anaconda::install"]]
     }
+	if $version {
+		exec { "anaconda_${env_name}_${name}_${version}":
+			command => "${conda} install --yes --quiet ${env_option} ${name}=${version}",
+			require => $env_require,
+			# Ugly way to check if package is already installed
+			# bug: conda list returns 0 no matter what so we grep output
+			unless  => "${conda} list ${env_option} ${name} | grep -w -i '${name}' | grep -q -w -i '${version}'",
+		}
+	} else {
+		exec { "anaconda_${env_name}_${name}":
+			command => "${conda} install --yes --quiet ${env_option} ${name}",
+			require => $env_require,
+			# Ugly way to check if package is already installed
+			# bug: conda list returns 0 no matter what so we grep output
+			unless  => "${conda} list ${env_option} ${name} | grep -q -w -i '${name}'",
+		}
+	}
     
     
-    exec { "anaconda_${env_name}_${name}":
-        command => "${conda} install --yes --quiet ${env_option} ${name}",
-        require => $env_require,
-        
-        # Ugly way to check if package is already installed
-        # bug: conda list returns 0 no matter what so we grep output
-        unless  => "${conda} list ${env_option} ${name} | grep -q -w -i '${name}'",
-    }
 }
